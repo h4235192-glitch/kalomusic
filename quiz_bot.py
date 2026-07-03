@@ -78,6 +78,10 @@ def init_db():
 
 init_db()
 
+def check_active_quiz_creation(user_id, context):
+    """Check if user has an active quiz creation in progress"""
+    return "quiz_build" in context.user_data and context.user_data["quiz_build"].get("title")
+
 async def new_quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         # Check if interaction is via callback button or command
@@ -101,6 +105,14 @@ async def new_quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
+        # Check for active quiz creation
+        if check_active_quiz_creation(update.message.from_user.id, context):
+            await update.message.reply_text(
+                "⚠️ **You have an unfinished quiz.** Please finish creating your quiz or send /cancel.\n\n"
+                "You cannot start a new quiz or use other commands until you complete this one."
+            )
+            return
+        
         args = context.args
         # Handle direct deep-linking tracking code
         if args and len(args) > 0 and args[0].startswith("quiz_"):
@@ -157,6 +169,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
+        # Check for active quiz creation
+        if check_active_quiz_creation(update.message.from_user.id, context):
+            await update.message.reply_text(
+                "⚠️ **You have an unfinished quiz.** Please finish creating your quiz or send /cancel.\n\n"
+                "You cannot use commands until you complete this quiz."
+            )
+            return
+        
         help_text = (
             "📖 Help Menu\n\n"
             "Aap is bot se quizzes bana kar apne dosto ke sath groups me realtime khel sakte hain.\n\n"
@@ -183,6 +203,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def quizzes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display user's quizzes directly via /quizzes command"""
     try:
+        # Check for active quiz creation
+        if check_active_quiz_creation(update.message.from_user.id, context):
+            await update.message.reply_text(
+                "⚠️ **You have an unfinished quiz.** Please finish creating your quiz or send /cancel.\n\n"
+                "You cannot use commands until you complete this quiz."
+            )
+            return
+        
         user_id = update.message.from_user.id
         
         conn = sqlite3.connect(DB_FILE)
@@ -485,6 +513,14 @@ async def handle_timer_text(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def view_my_quizzes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Fetches and displays all quizzes created by the user with View buttons - 2 per row"""
     try:
+        # Check for active quiz creation
+        if check_active_quiz_creation(update.callback_query.from_user.id, context):
+            await update.callback_query.answer(
+                "⚠️ You have an unfinished quiz. Please finish creating your quiz or send /cancel.",
+                show_alert=True
+            )
+            return
+        
         query = update.callback_query
         user_id = query.from_user.id
         await query.answer()
