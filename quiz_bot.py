@@ -88,7 +88,7 @@ async def new_quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.callback_query.answer()
             
         await msg_obj.reply_text(
-            "Let's create a new quiz. First, send me the title of your quiz (e.g., 'Aptitude Test' or '10 questions about bears').",
+            "Let's create a new quiz. First, send me the title of your quiz (e.g., 'Aptitude Test' or '10 questions about bears').\n\n⚠️ Note: Title must be 128 characters or less.",
             reply_markup=ReplyKeyboardRemove()
         )
         context.user_data["quiz_build"] = {"title": "", "description": "", "questions": []}
@@ -227,7 +227,16 @@ async def quizzes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def receive_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
-        context.user_data["quiz_build"]["title"] = update.message.text.strip()
+        title = update.message.text.strip()
+        
+        # 🔴 NEW: Check if title exceeds 128 characters
+        if len(title) > 128:
+            await update.message.reply_text(
+                "⚠️ This title is too long. Please send a new one, 128 characters max."
+            )
+            return TITLE
+        
+        context.user_data["quiz_build"]["title"] = title
         await update.message.reply_text(
             "Good. Now send me a description of your quiz. This is optional, you can /skip this step.",
             reply_markup=ReplyKeyboardRemove()
@@ -1052,7 +1061,7 @@ async def edit_title_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer()
         quiz_id = int(query.data.split("_")[1])
         context.user_data["editing_quiz_id"] = quiz_id
-        await query.message.reply_text("📝 Please send the **new title** for your quiz:")
+        await query.message.reply_text("📝 Please send the **new title** for your quiz:\n\n⚠️ Note: Title must be 128 characters or less.")
         return EDIT_TITLE
     except Exception as e:
         logging.error(f"Error in edit_title_trigger: {e}")
@@ -1062,6 +1071,13 @@ async def save_edited_title(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         new_title = update.message.text.strip()
         quiz_id = context.user_data.get("editing_quiz_id")
+        
+        # 🔴 NEW: Check if title exceeds 128 characters
+        if len(new_title) > 128:
+            await update.message.reply_text(
+                "⚠️ This title is too long. Please send a new one, 128 characters max."
+            )
+            return EDIT_TITLE
         
         if not quiz_id:
             await update.message.reply_text("❌ Error: Session expired. Restart using menu.")
